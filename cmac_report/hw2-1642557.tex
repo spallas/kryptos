@@ -1,5 +1,8 @@
 \documentclass[11pt]{article}
 
+\usepackage{cite}
+\usepackage{hyperref}
+
 \begin{document}
 
 \title{CMAC: Cipher-based MAC\\ HW2 - CNS Sapienza}
@@ -13,7 +16,9 @@ When exchanging messages in a secure way, confidentiality is one of the main con
 
 \section{CMAC main features}
 \paragraph*{Background}
-CMAC is known as OMAC which stands for One-Key CBC MAC, and in fact it is a simple variant of CBC MAC (which in turn stands for Cipher Block Chaining MAC). CBC MAC is a technique based on the employment of a block cipher with chaining. The message is originally divided in blocks and encrypted with the well known CBC technique with an initialisation vector of all zeros, the encryption of the last block is chosen as the authentication tag to be send together with the message. The property that is used is that a small change in a bit of the plaintext is propagated in the subsequent blocks until the last one making the tag completely different from the original one, which is the desired characteristic. As most of the MAC variants this requires that communicating parties share a secret key. One of the main problems that CBC MAC implementation have to face is the fact that a naive application of the technique is secure only if the same key is used only for fixed-size messages; for variable length messages some further operations must be carried out. This is why the OMAC1/CMAC variation has been proposed.
+CMAC is known as OMAC which stands for One-Key CBC MAC \cite{omac}, and in fact it is a simple variant of CBC MAC (which in turn stands for Cipher Block Chaining MAC) \cite{cbcmac}. CBC MAC is a technique based on the employment of a block cipher with chaining. The message is originally divided in blocks and encrypted with the well known CBC technique with an initialisation vector of all zeros, the encryption of the last block is chosen as the authentication tag to be send together with the message. The property that is used is that a small change in a bit of the plaintext is propagated in the subsequent blocks until the last one making the tag completely different from the original one, which is the desired characteristic. As most of the MAC variants this requires that communicating parties share a secret key. One of the main problems that CBC MAC implementation have to face is the fact that a naive application of the technique is secure only if the same key is used only for fixed-size messages; for variable length messages some further operations must be carried out. In fact it's easy to show that if an attacker knows two pairs $(m, t)$ and $(m',t')$ he can easily compute a third message $m"$ whose authentication tag is equal to $t'$. To do so he has to make sure that $m"$ is composed by the message $m$ concatenated with a modified version of message $m'$, where the first block is xored with $t$ the authentication tag of the first message so that when chaining the messages together the attacker will obtain a valid message since the first block of $m'$ is xored twice with the tag $t$.
+This is the reason why the OMAC1/CMAC variation has been proposed.
+
 
 \paragraph*{CMAC algorithm}
 The basic ingredients of the CMAC technique are an encryption algorithm \textit{E} and a tag length \textit{t}. The encryption algorithm can be any symmetric encryption standard like AES, Triple-DES etc.
@@ -21,13 +26,44 @@ The procedure is divided in two parts, in the first part there is a \textit{prep
 The second phase is the tag generation. Each block of the message from 0 to \textit{m-1} is the encryption of the xor between the block plaintext and the result of the encryption of the previous block (except for the first block). The last block instead is treated differently depending on the length of the block: if the block size is equal to n the block is xor-ed with the first bit string from the preprocessing otherwise it is padded with 10000... until reaching dimension n and the second bit string is used instead. The result is encrypted and is truncated to length \textit{t} giving the tag as the final result. The message is sent together with the tag and the authenticity verification consists of generating the tag from the received message with exactly the same procedure using your own private key and compare it with the received tag, if the comparison is successful the message is authentic and intact, otherwise not.
 
 As pointed out before the security of the technique depends on the strength of the used encryption algorithm, with relative key length.
+A variation over the so called OMAC1 algorithm is called OMAC2, the difference consists in a different way of generating the second bit string that is one of the operands of the final XOR together with the padded final block. In particular the second bit string is built in a different way: the check is not on the most significant bit but with the least significant one. If it is 0 then a right shift is computed otherwise in addition to the shift a XOR with a constant is computed; the constants are different from the ones in the OMAC1 and are dependent on the length of the encryption key. Visit this webpage (http://www.nuee.nagoya-u.ac.jp/labs/tiwata/omac/omac.html) for an extended description of the algorithm, and refer to \cite{omac} for further mathematical background.
 
 
 \section{CMAC/HMAC comparison}
+As we have seen in the previous sections CMAC is an approach based on block-ciphers. Another approach that can be compared to this one is HMAC \cite{rfc2104} based on the use of a cryptographically secure hash function and a shared secret key. The output tag of HMAC is defined as:\\
+$HMAC_k(m, h) = h(k \oplus opad || h(k \oplus ipad || m))$\\
+Where \textit{h} is an hash function, \textit{k} is the shared secret key, \textit{ipad, opad} are respectively the bytes 0x36 and 0x5C repeated B times where B is the byte-length of data blocks, and \textit{m} is the plaintext message. One of the main problems of hash based approaches is the birthday paradox, where after trying $2^{n/2}$ messages you expect to find a collision. The power of the HMAC consists in the fact that without knowing the key the attacker can not generate the tags for messages of his choice, so the only way to employ the birthday paradox would be to listen to such number of messages from the user, but even in that case he wouldn't be able to generate tags for messages that are different from the ones he listened.
 
+The HMAC implementation saw a slightly greater success with respect to CMAC, and probably the main reason for that is that HMAC was officially described in 1997 in the RFC 2104, while CMAC was proposed only in 2003. From the security point of view the two approaches have different schemas of attack. For example HMAC can be target of distinguishing and forgery attacks based on differential and rectangular distinguishers. Kim et al. in \cite{distinguisher} shown that HMAC with the full versions of 3-pass HAVAL and SHA-0 can be distinguished from HMAC with a random function, and HMAC with the full version of MD4 can be forged. As well as the security of HMAC depends on the underlying cryptographic hash function, CMAC security depends on the security of the employed cipher. However CMAC can be target of an attack called Second preimage attack \cite{secondpreimage} that allows the attacker to reduce the attack complexity to that of a birthday attack.
+From a performance perspective the HMAC and CMAC inherit performance properties of employed algorithms, for example if you notice that the SHA3 implementations managed to have better performance than AES you could conclude that one approach is faster than the other, at the same time if you have hardware based ciphers, for example if your processor supports AES opcodes, that would make the performance of the other better.
 
 \section{Conclusions}
+So we have seen how CMAC, in its two variants OMAC1 and OMAC2, is an improved version of the CBC-MAC that employs block ciphers to compute the message tag. In particular it addresses the security problems in case of variable length messages. We have also compared CMAC with the HMAC and we noticed differences in security properties and in performance.
+In this last paragraph we want to present some existing implementations in the most common programming languages, and at the same time we want to make a benchmarking of the usability of these libraries.
+The most known libraries implementing CMAC are:
+\begin{itemize}
+\item Java: Bouncy Castle - org.bouncycastle.crypto.macs.CMac class
+\item C: OpenSSL - openssl/cmac.h header
+\item Python: pycryptodome Crypto.Hash.CMAC module
+\end{itemize}
+Analysing the APIs of these modules they appear very similar to each other and they seem really easy to implement. The instantiation of the classes in the three cases requires a separate object that is a block cipher instance, which shows a good modularity of the implementations. The python implementation additionally provides a verify() method that is pretty convenient. We notice that in all the three cases no particular key infrastructure is needed. In the following example we show the particular naturalness and ease of use of the python API to create an AES-CMAC:
 
+\begin{verbatim}
+>>> from Crypto.Hash import CMAC
+>>> from Crypto.Cipher import AES
+>>>
+>>> secret = b'key_key_key_key_'
+>>> cobj = CMAC.new(secret, ciphermod=AES)
+>>> cobj.update(b'Hello')
+>>> print cobj.hexdigest()
+\end{verbatim}
 
+The APIs are available at the following addresses: Java - \url{https://people.eecs.berkeley.edu/~jonah/bc/org/bouncycastle/crypto/macs/CMac.html}; C- \url{http://docs.huihoo.com/doxygen/openssl/1.0.1c/include_2openssl_2cmac_8h.html}; Python - \url{https://legrandin.github.io/pycryptodome/Doc/3.2/Crypto.Hash.CMAC-module.html}.
+
+%\clearpage
+
+\nocite{*} % Show all Bib-entries
+\bibliography{hw2-1642557} 
+\bibliographystyle{plain}
 
 \end{document}
