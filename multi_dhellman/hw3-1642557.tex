@@ -11,29 +11,46 @@
 \maketitle
 
 \section{Introduction}
+The original work presented in 1976 by Whitfield Diffie and Martin Hellman \cite{original_dh} was one of the first to address the problem of public key cryptography (even if the two recognise the Merkle's contribution to the invention of public-key cryptography). The novelty of this approach is that it enables communicating entities with no prior knowledge of each other to share a secret exchanging messages over an insecure channel. We want to point out here that the basic protocol implementing the algorithm doesn't provide an authenticated key agreement, even if it can be considered a basis on which to implement further protocols with additional properties.
 
-\section{Three parties case}
-
+\section{Generalization to N parties}
+The goal of this work is to analyse and propose a solution to the problem of generalising the original key agreement involving two parties to the case of multiple parties. This purpose can be achieved thanks to the mathematical properties of the Diffie-Hellman algorithm. Before describing our approach we will quickly revise the D-H key exchange mechanisms.
 \paragraph*{Background}
+The original formulation of the key exchange protocol uses the multiplicative group of integers modulo \textit{p}, where \textit{p} is a prime. The resulting shared key will be a value in the interval 1 to \textit{p}-1. For the sake of the computation of the keys another number \textit{g} has to be chosen and it has to be a primitive root modulo \textit{p}. We recall that a primitive root modulo \textit{n} is a number \textit{g} such that for every integer \textit{a} co-prime to \textit{n}, there is an integer \textit{k} such that $g^k \equiv a\ (mod\ n)$. Such \textit{k} is called the index or discrete logarithm of \textit{a} to the base \textit{g} modulo \textit{n}.
+Notice that the two parties can agree on the values of \textit{g, p} without keeping them secret. At the same time they have to choose private secret values \textit{a} and \textit{b}. Let us explain the protocol through an example:
+\begin{enumerate}
+\item Captain America wants to send a message to Dr. Banner so the two agree on the pair \textit{g, p}.
+\item Captain America chooses a secret value \textit{a}, and Dr. Banner a value \textit{b}.
+\item Captain America computes the value $A = g^a\ mod\ p$
+\item Dr. Banner computes the value $B = g^b\ mod\ p$
+\item The two exchange the values \textit{A, B}
+\item To obtain the secret shared key \textit{k} Captain America computes $k = B^a\ mod\ p$, while Dr. Banner computes $k = A^b\ mod\ p$. The correctness of the computation is guaranteed by the properties of exponentiation modulus \textit{n}, while the security of the method stems from the absence of an efficient algorithm to compute the discrete logarithm of the values \textit{A, B} (when the order of \textit{g} is large enough) which would allow the eavesdropper Loki to obtain back the values \textit{a, b} that in turn would allow him to compute the shared key \textit{k}.
+\end{enumerate}
 
+\paragraph*{Three parties case}
+In order to generalize the protocol to three parties we observe that we can apply multiple times the property that allows the two parties to compute the final key, in particular that property guarantees that:\\
+$((g^a\ mod\ p)^b\ mod\ p))^c\ mod\ p = g^{(ab)c}\ mod\ p = g^{(ac)b}\ mod\ p = g^{(bc)a}\ mod\ p\ etc.$\\
+Thus we can devise a scheme of messages exchange that allows the parties to obtain the partial computations needed to later compute the final shared key.
+In particular with three parties a distributed agreement protocol can be the following:\\
+\begin{enumerate}
+\item As always the parties have to agree on the parameters \textit{p, g}.
+\item Then the parties choose their own secret values \textit{a, b, c}.
+\item The three parties computes the values $A = g^a\ mod\ p$; $B = g^b\ mod\ p$; $C = g^c\ mod\ p$.
+\item Captain America sends \textit{A} to Dr. Banner, which in turn sends \textit{B} to Agent Coulson who sends \textit{C} back to Captain America. At this point the values $AC = g^{ac}\ mod\ p$; $BA = g^{ba}\ mod\ p$; $CB = g^{cb}\ mod\ p$ are computed by each party and a final circular exchange of messages (the same as before, everyone sends its message to the successor) is executed.
+\item At this point the three parties are ready to compute the final shared secret key $k = g^{abc}\ mod\ p$.
+\end{enumerate}
+
+\section{Evaluation}
 \paragraph*{Delays}
 
 \paragraph*{Compromised party}
 
-\section{Generalization to N parties}
-
 \section{Conclusions}
-
-\begin{itemize}
-\item 
-\item 
-\item 
-\end{itemize}
 
 %\clearpage
 
 \nocite{*} % Show all Bib-entries
-\bibliography{hw2-1642557} 
-\bibliographystyle{plain}
+\bibliography{hw3-1642557} 
+\bibliographystyle{plainurl}
 
 \end{document}
