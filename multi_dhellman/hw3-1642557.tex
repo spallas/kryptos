@@ -1,6 +1,7 @@
 \documentclass[11pt]{article}
 
 \usepackage{cite}
+\usepackage{graphicx}
 \usepackage{hyperref}
 
 \begin{document}
@@ -11,9 +12,9 @@
 \maketitle
 
 \section{Introduction}
-The original work presented in 1976 by Whitfield Diffie and Martin Hellman \cite{original_dh} was one of the first to address the problem of public key cryptography (even if the two recognise the Merkle's contribution to the invention of public-key cryptography). The novelty of this approach is that it enables communicating entities with no prior knowledge of each other to share a secret exchanging messages over an insecure channel. We want to point out here that the basic protocol implementing the algorithm doesn't provide an authenticated key agreement, even if it can be considered a basis on which to implement further protocols with additional properties.
+The original work presented in 1976 by Whitfield Diffie and Martin Hellman \cite{original_dh} was one of the first to address the problem of public key cryptography (even if the two recognise the Merkle's contribution to the invention of public-key cryptography). The novelty of this approach is that it enables communicating entities with no prior knowledge of each other to share a secret exchanging messages over an insecure channel. Before we proceed with the description of some possible ways of generalizing the protocol to multiple parties we want to point out here that the basic protocol implementing the algorithm doesn't provide an authenticated key agreement, even if it can be considered a basis on which to implement further protocols with additional properties, so we will not consider this property in the following sections.
 
-\section{Generalization to N parties}
+\section{Protocol generalization to N parties}
 The goal of this work is to analyse and propose a solution to the problem of generalising the original key agreement involving two parties to the case of multiple parties. This purpose can be achieved thanks to the mathematical properties of the Diffie-Hellman algorithm. Before describing our approach we will quickly revise the D-H key exchange mechanisms.
 \paragraph*{Background}
 The original formulation of the key exchange protocol uses the multiplicative group of integers modulo \textit{p}, where \textit{p} is a prime. The resulting shared key will be a value in the interval 1 to \textit{p}-1. For the sake of the computation of the keys another number \textit{g} has to be chosen and it has to be a primitive root modulo \textit{p}. We recall that a primitive root modulo \textit{n} is a number \textit{g} such that for every integer \textit{a} co-prime to \textit{n}, there is an integer \textit{k} such that $g^k \equiv a\ (mod\ n)$. Such \textit{k} is called the index or discrete logarithm of \textit{a} to the base \textit{g} modulo \textit{n}.
@@ -40,12 +41,22 @@ In particular with three parties a distributed agreement protocol can be the fol
 \item At this point the three parties are ready to compute the final shared secret key $k = g^{abc}\ mod\ p$.
 \end{enumerate}
 
+This was the approach 1.0, the approach 2.0 aims at reducing the number of exchanged messages that in approach 1.0 grows quadratically. So the second approach is based on a sort of hub node. The principal behind this approach is that all the interested parties have to know the number $k_{a_i} = g^{a_0...a_{(i-1)}a_{(i+1)}...a_n}\ mod\ p$ (if the parties are $a_0,...,a_n$) in order to compute the final shared key. The idea is that every party sends its own value $A_i = g^{a_i}\ mod\ p$ to a hub node that collects all the $A_i$ values. The hub node will prepare a message for each of the other nodes computing the number $k_{a_i}$ as defined before for each $i$ and send it to the respective nodes. Notice that obviously the hub node has to be one of the parties that share the key since he can compute the shared secret. Refer to Figure\ref{fig:hub} as an example with two parties plus one hub party.
+\begin{figure}[h]
+\includegraphics[width=1.0\textwidth]{hub-hw3-1642557}
+\centering
+\caption{approach 2.0: three parties with hub}
+\label{fig:hub}
+\end{figure}
 \section{Evaluation}
-\paragraph*{Delays}
+In the previous sections we have basically seen two different approaches. The first consists of a circular peer to peer message exchange that happens multiple times until the key agreement is reached, the second consists in sending the messages to a hub node that computes the partial keys and sends them back to the other nodes. The first thing that we notice is that the second approach uses a much lower amount of messages and performs $2n + 1$ exponentiations, in fact it only needs two messages: a request and a response from the hub. On the other hand the first approach uses both a quadratic number of exponentiations: each node indeed must contribute $n$ times to the final key and each time it must send the result to the next node.
+\paragraph*{Delays and compromised party}
+Some problems that can occur include unexpected long message delays or the fact that nodes can be compromised. The second approach can be modified and integrated with some timeout logic that allows to exclude without much effort the node whose message is delayed. Notice that the delay problems affects the totality of nodes only in the request phase, indeed if some response is delayed for some nodes, these will be simply excluded from the communication until the arrival of the message; the other nodes in the meanwhile can communicate without any problem since they already received the value to compute the shared key. In the first approach instead it's not so easy to exclude a single node from the communication in the case it is experiencing network delays. In fact every node in this case at a certain time $t$ has contributed to the exponent of $i$ partial keys, and in order to exclude the slow-network node all those values are to be canceled and the process of key exchange should restart, even if some results from previous operations can be reused.
 
-\paragraph*{Compromised party}
+In the case of compromised party the situation is similar. Obviously if one they key of one party is disclosed all the communication is compromised. On the other side if any of the exchanged messages in both the approaches is intercepted then, if $g$ has been chosen effectively, for the attacker is computationally hard to find the shared key. In the first approach however if the attacker gets to know the private secret of one party he will have to also be able to simulate the party activity and to remain undetected until the final key agreement is reached, indeed if the compromised party has time to alert the other nodes of the intrusion the computation can stop before any shared key is computed. In the second approach the detection of an attack could be something less harmful for the network, indeed if the hub node is warned about the impairment of a node it can choose to exclude the node from the computation of the key and allow the un-compromised nodes to communicate. The reader could argue that in the second approach the attacker can also target the hub node in order to hinder the entire key exchange without even trying to get to know the private secrets. This attack can be easily avoided devising a method to elect a new leader every time a master node is compromised, this can be done without problems with a distributed system algorithm noticing that the master node is in any way different from the other nodes except for the computation load that it is responsible for.
 
 \section{Conclusions}
+In this report we devised two simple methods to extend the Diffie-Hellman key agreement protocol to more than two parties, making examples with three parties first. Then we discussed some performance aspects and the problems that can arise when the messages are affected by network delays or when nodes are compromised. In conclusion we want to mention a different approach \cite{Joux2000} that uses more advanced mathematical tools to reduce the number of messages exchange in a three party D-H to only one round.
 
 %\clearpage
 
