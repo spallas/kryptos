@@ -1,0 +1,45 @@
+\documentclass[11pt]{article}
+
+\usepackage{cite}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Rock Paper scissors hand game (ro sham bo)\\ HW4 - CNS Sapienza}
+\author{Davide Spallaccini - 1642557}
+\date{17 of November 2017}
+\maketitle
+
+\section{Introduction}
+In this work we will apply cryptography techniques to the design of a protocol of a multi-player game called \textit{rock paper and scissors}. The goal is to design a protocol that is resilient to possible cheating activities of the two players while making the interaction as close as possible to the original game.
+
+\section{Design}
+
+\paragraph*{Assumptions and desired properties}
+During the design of the protocol we will make the following assumptions. The game is constituted by five rounds, and in each round the two players have to decide \textit{simultaneously} one between rock, scissors and paper and the protocol produces the winner of the round. We also assume though that no multiple channels are given, so the players exchange one message at a time. We will assume that there are no third parties, trusted or untrusted. Finally we assume that the two players are already authenticated but no keys are shared initially. The properties we would like to enforce are: data integrity, the avoidance of players' disputes about the winner of rounds/game, simplicity, difficulty of cheating for the two players in particular providing guarantees similar to the ones of the real game.
+
+\paragraph*{Game Protocol}
+In the first version of the protocol we base the security against cheating on the presence of a local copy of the choice of the adversary. On the other hand, to make sure that each player does not choose his move based on the one of the adversary (which is not allowed in the original game) we make this local copy encrypted. The tool we use to enforce message integrity is HMAC with the use of a key provided by the adversary to avoid collision pre-computation. This is the basic idea; in the following list we describe the protocol more in the detail.
+\begin{enumerate}
+\item When the game starts the two players have to choose one value in the set ${R, P, S}$.
+\item Initially each player sends a random nonce to the other. This will be used as a basis for the HMAC.
+\item The two players then generate a random key and select a choice. 
+\item Then the following messages are exchanged: $HMAC(key_a||C_a||nonce_b)$ from A to B, $HMAC(key_b||C_b||nonce_a)$ from B to A.
+\item The private information is then revealed: A sends $key_a, C_a$ to B, and B sends $key_b, C_b$
+\item When the messages arrive the players verify the correctness computing the hash of all the information they have.
+\item If the hash outputs correct values the two players have to update the current score of the game. This process is repeated for each round, and in particular keys and nonces cannot be the same in any round.
+\end{enumerate}
+
+\section{Security}
+The data integrity is guaranteed by the properties of the hash function. One of the problems of hash functions is that one of the players could in principle develop an offline pre-computation attack where he tries to find two different a collision for two messages containing different value for the choice so that when B replies with the value of his choice in clear he can send different messages knowing that the hash computed by A will however output a correct value. This is made impossible with the use of the early random nonces exchanged between the two players. In fact if the communication is time-bounded for example B can 
+
+
+\section{Conclusions}
+%\clearpage
+
+\nocite{*} % Show all Bib-entries
+\bibliography{hw4-1642557} 
+\bibliographystyle{plainurl}
+
+\end{document}
