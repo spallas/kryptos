@@ -20,23 +20,30 @@ In this work we will apply cryptography techniques to the design of a protocol o
 During the design of the protocol we will make the following assumptions. The game is constituted by five rounds, and in each round the two players have to decide \textit{simultaneously} one between rock, scissors and paper and the protocol produces the winner of the round. We also assume though that no multiple channels are given, so the players exchange one message at a time. We will assume that there are no third parties, trusted or untrusted. Finally we assume that the two players are already authenticated but no keys are shared initially. The properties we would like to enforce are: data integrity, the avoidance of players' disputes about the winner of rounds/game, simplicity, difficulty of cheating for the two players in particular providing guarantees similar to the ones of the real game.
 
 \paragraph*{Game Protocol}
-In the first version of the protocol we base the security against cheating on the presence of a local copy of the choice of the adversary. On the other hand, to make sure that each player does not choose his move based on the one of the adversary (which is not allowed in the original game) we make this local copy encrypted. The tool we use to enforce message integrity is HMAC with the use of a key provided by the adversary to avoid collision pre-computation. This is the basic idea; in the following list we describe the protocol more in the detail.
+In the first version of the protocol we base the security against cheating on the presence of a local copy of the choice of the adversary. On the other hand, to make sure that each player does not choose his move based on the one of the adversary (which is not allowed in the original game) we make this local copy encrypted. The tool we use to enforce message integrity is the SHA-256 hash function with the use of a key provided by the adversary to avoid collision pre-computation. This is the basic idea; in the following list we describe the protocol more in the detail.
 \begin{enumerate}
 \item When the game starts the two players have to choose one value in the set ${R, P, S}$.
-\item Initially each player sends a random nonce to the other. This will be used as a basis for the HMAC.
+\item Initially each player sends a random nonce to the other. This will prevent pre-computation attacks.
 \item The two players then generate a random key and select a choice. 
-\item Then the following messages are exchanged: $HMAC(key_a||C_a||nonce_b)$ from A to B, $HMAC(key_b||C_b||nonce_a)$ from B to A.
+\item Then the following messages are exchanged: $sha256(key_a||C_a||nonce_b)$ from A to B, $sha256(key_b||C_b||nonce_a)$ from B to A.
 \item The private information is then revealed: A sends $key_a, C_a$ to B, and B sends $key_b, C_b$
 \item When the messages arrive the players verify the correctness computing the hash of all the information they have.
 \item If the hash outputs correct values the two players have to update the current score of the game. This process is repeated for each round, and in particular keys and nonces cannot be the same in any round.
 \end{enumerate}
 
 \section{Security}
-The data integrity is guaranteed by the properties of the hash function. One of the problems of hash functions is that one of the players could in principle develop an offline pre-computation attack where he tries to find two different a collision for two messages containing different value for the choice so that when B replies with the value of his choice in clear he can send different messages knowing that the hash computed by A will however output a correct value. This is made impossible with the use of the early random nonces exchanged between the two players. In fact if the communication is time-bounded for example B can 
-
+The main security ingredient of the protocol we described is the SHA-256 hash function, that by the way can be replaced by any other cryptographically secure hash mechanism. One of the problems of hash functions is that one of the players could in principle develop an offline pre-computation attack where he tries to find two different a collision for two messages containing different value for the choice so that when B replies with the value of his choice in clear he can send different messages knowing that the hash computed by A will however output a correct value. This is made impossible with the use of the early random nonces exchanged between the two players. In fact if the communication is time-bounded for example B has no possibility to run a brute-force computation to find a collision that takes into account the nonce provided by A. The keys we decided to put as an extra length to the message are a necessary further layer of security in fact since B knows the nonce he initially sent the set the set of possible messages that can be transmitted is such that B can easily guess which is the choice of A simply trying to hash all possible choices, instead if a key is present it's hard for bob to bruteforce all the possible messages, if the length of the key is large enough. The agreement on the final value is guaranteed by enforcing the use of the cryptographic hash functions like SHA-256 that with the verification step makes the two choices undeniable, in the sense that B cannot deny he chose a value X if he previously sent an hash value corresponding to that information. The data integrity is guaranteed by the properties of the hash function.
+\newline
+\begin{figure}[h]
+\includegraphics[width=1.0\textwidth]{protocol-hw4-1642557}
+\centering
+\caption{Rock, Paper, Scissors game protocol}
+\label{fig:protocol}
+\end{figure}
+\clearpage
 
 \section{Conclusions}
-%\clearpage
+In this work we have shown a possible solution to the problem of defining a communication protocol between two untrusted parties that want to exchange information like strategic choices, or just simpler ones like in the rock paper scissors game, in a simultaneous way but without channel multiplexing. The solution is based on the use of SHA-256, a cryptographically secure hashing method and by the exploitation of random nonces exchanged between players.
 
 \nocite{*} % Show all Bib-entries
 \bibliography{hw4-1642557} 
