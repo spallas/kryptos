@@ -221,3 +221,5 @@ TSWLatexianTemp*
 
 .DS_Store
 
+*.png
+*.pcapng
