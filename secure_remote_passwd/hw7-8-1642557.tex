@@ -1,0 +1,170 @@
+\documentclass[11pt]{article}
+
+\usepackage{cite}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\hypersetup{colorlinks=true, linkcolor=blue}
+\def\UrlBreaks{\do/\do-}
+
+\begin{document}
+
+\title{The SRP Project\\ HW7-8 - CNS Sapienza}
+\author{Davide Spallaccini - 1642557}
+\date{15 of December 2017}
+\maketitle
+
+\section{Introduction}
+In this report we will explore the \emph{Secure Remote Password} (SRP) protocol with its functionalities, the mechanisms behind it and we will compare its security properties with other password based authentication systems. We will finally provide some demo and how to examples discussing in particular the support offered by the OpenSSL library.
+
+\section{Overview}
+SRP is a secure password-based authentication and key-exchange protocol. The idea behind it first appeared on USENET in late 1996, and went subsequently under incremental refinements addressing additional security properties. In 1998 the SRP-3 implementation was published and after considerable public analysis and scrutiny coming from the community further refinements addressing ease of incorporation into existing systems led to SRP-6a which is the actual protocol design.
+
+This protocol claims to resist all the well-known passive and active attacks over the network providing a unique combination of password security, user convenience, and freedom from restrictive licenses, and to be the most widely standardised protocol of its kind. The main goal of SRP is to provide strongly secure communication sessions offering authentication based on short human-memorizable secrets like passwords.
+
+The main idea is to provide the client the ability to authenticate to a server only memorizing a small secret. On the other side the server stores what is called a \emph{verifier} that has the property, if compromised, of not allowing the attacker to manage to impersonate users. On the base of an initial handshake the protocol provides also the exchange of a cryptographically-strong secret enabling a secure session of communication.
+
+\paragraph*{Protocol technical description}
+In the description of the protocol we will use the following symbols and terminology:
+\begin{itemize}
+  \item $N, g$. A large safe prime is used ($N = 2q+1$, where q is prime). All arithmetic is done modulo N. In particular the exponentiations that we will write soon are done modulo $N$ where $g$ is a generator modulo $N$.
+  \item $H()$ is a cryptographically-secure hash function.
+  \item $k, u$ are respectively the multiplier parameter ($k = H(N, g)$ in SRP-6a, $k = 3$ for legacy SRP-6), and a random scrambling parameter.
+  \item $s$, is the user's salt.
+  \item $uid, passwd$  are the username and the cleartext password.
+\end{itemize}
+Initially the server or host store a password verifier computed as follows:\\
+
+  $v = g^x$ \\
+  
+Where $x$ is a private key derived from the password and the salt in the following way: $x = H(s, passwd)$. In particular an entry in the server's database is constituted by the tuple $(uid, s, v)$.
+A schematic view of the protocol is provided in Figure \ref{fig:protocol}.
+
+\begin{figure}[h]
+\includegraphics[width=1.0\textwidth]{srp-protocol-hw7-8-1642557}
+\centering
+\caption{The SRP protocol: messages exchanged and computations required.}
+\label{fig:protocol}
+\end{figure}
+
+Please notice that the two parties also ensure that the following conditions are checked:
+\begin{itemize}
+	\item The user will abort if he receives B == 0 (mod N) or u == 0.
+	\item The host will abort if it detects that A == 0 (mod N).
+	\item The user must show his proof of K first. If the server detects that the user's proof is incorrect, it must abort without showing its own proof of K.
+\end{itemize}
+
+\section{Comparison}
+Different security measures are taken in the various products that populate the Internet. In this section we will list the most common authentication mechanisms and we will compare their security  to strong password systems like SRP and see how this protocols solves some security issues of those.
+
+Before proceeding with the comparisons we want to point out some desirable properties that we expect from a good and strong password based authentication system. In the list of the alternatives below we will see how some of these properties are not satisfied or are enforced in some variants but with a significant performance loss. Indeed many alternatives were proposed over time and new ones are proposed nowadays, and in general modern strong password authentication systems ensuring the following properties are mainly compared on performance, like on number of exchanged messages and computational complexity of calculations required. So the properties we are interested in are:
+\begin{itemize}
+	\item \emph{verifier-based}: this property provides a nice security feature and determines a net separation from protocols employing plaintext-equivalent mechanisms. A verifier is a value that is easily computed from the password, but getting to the password from the verifier is computationally hard. Verifier-based protocols require the server/host to store and keep secret the verifier of each user so that this value is never exchanged in messages. This mechanism ensures also a feature known as "zero knowledge password proof". Protocols that use plaintext-equivalent mechanisms still store passwords in a hashed form (so that the server doesn't know the passwords of users) but due to the properties of the messages exchanged, an attacker that is able to exploit a password database leak has instant ability to impersonate users, even before getting to know the passwords. On the other hand if verifiers are stolen from the server the attacker cannot impersonate any user without an expensive dictionary search.
+	\item \emph{forward secrecy}: this is a very desirable property that is really useful in case the passwords of some users are revealed to an attacker. This is of course the worst case of leak in a password-based authentication system. Forward secrecy ensures that even if the password is leaked it's impossible for the attacker to obtain any information about messages in previous sessions or currently established sessions. 
+	\item \emph{offline dictionary attack resistance}: this is a basic property that ensures that an offline dictionary attack (which consists in verifying the correctness of a set of possible/common passwords) is infeasible since the attacker is not provided sufficient information to guess a correct password starting from the recording of an eavesdropped sequence of authentication messages.
+\end{itemize}
+
+If you watch again the protocol specification given in previous paragraph you will notice that the SRP protocol satisfies all these properties. At the same time remember that password-based protocols suffer theoretical limitations that are unavoidable but that can be attenuated through countermeasures applicable to all protocols (think for example to an online dictionary attack where  a large number of attempts to connect to the server with different passwords are done).
+
+\begin{description}
+	\item [Weak authentication] These systems are most of the time used for legacy technologies reasons and often they do not expect the client to install additional software. The type of protocols that we consider weak are the ones that employ cleartext passwords, encoded passwords, classic challenge-response based protocols (vulnerable to offline dictionary attacks), the Kerberos V4 system. Examples include unsecured telnet and rlogin, HTTP basic authentication mechanisms, etc.
+	\item [EKE, SPEKE, strong password authentication] This family of protocols provide some stronger properties from the ones we listed above. In particular the Encrypted Key Exchange (EKE) protocol is designed to be both resistant to dictionary attacks, providing insufficient information to a passive eavesdropper, and to replay attacks. It uses a symmetric encryption based on passwords (weak shared secret) to provide authentication combined with public key cryptography mechanisms (like Diffie-Hellman) to exchange a strong session key that is different every time. Some variants like SPEKE provide mechanisms to enforce the additional \emph{forward secrecy} property that we described above. The common problem that EKE family still suffers is plaintext-equivalence since both the client and the server need access to the same shared secret derived from the password (typically a hash). To solve this problem the \emph{augmentation} property has been proposed and incorporated in variants called A-EKE (Augmented EKE) protocols. This makes the overall approach \emph{verifier-based}, with the derived properties described above, the problem is though that enforcing this new property the \emph{forward secrecy} is lost \cite{aeke}.
+	
+	\item [SSH public key and password authentication] This category can be referred to as "pseudo-strong" because, even if far better that cleartext passwords, still suffers from some security issues. Indeed the SSH protocol uses well established security algorithms but user authentication is still the main weakness. The public key authentication method, for example, requires a client to store a private key, while the corresponding public key is stored on the server; now, even without considering the loss of the property of the user being independent from a particular client, the problem is that a single client system may be accessed by many users and therefore every single password should be encrypted with a passphrase memorizable by the users; this means that an attacker with remote access to the client data can run a dictionary attack to retrieve the private keys. For example \emph{password-protected client side certificates} may suffer the same problems and inconveniences. On the other hand SSH password authentication entirely relies upon the security of the underlying communication link that means that if the attacker manages to authenticate as the server he is able to receive plaintext passwords from users attempting to login. This is not the case in the SRP protocol.
+\end{description}
+
+Other comparisons can be made in terms of performance between the different types of strong password authentication methods and the results show indeed that SRP is 40-60\% times faster than the EKE family alternatives \cite{srp}, but we will not deepen this aspect since we want to concentrate for now on security properties.
+
+\section{Integration}
+Some effort has been made in the design of the various updated versions of the original SRP idea in order to make it easy to integrate the protocol with existing standards. In the following paragraphs we will see two examples of how it was integrated in the TLS protocol and in the Telenet authentication system. 
+
+\paragraph*{TLS} The advent of SRP-6 allows the SRP protocol to be implemented using the standard sequence of handshake messages defined in TLS \cite{RFC5054}. In the following sketch you can notice how the standard TLS handshake is modified in order to transmit the various messages needed by the SRP protocol.
+\begin{verbatim}
+***Client***                                ***Server***
+Client Hello (I)        -------->
+                                            Server Hello
+                                            Certificate*
+                                  Server Key Exchange (N,g,s,B)
+                        <--------      Server Hello Done
+Client Key Exchange (A) -------->
+[Change cipher spec]
+Finished                -------->
+                                    [Change cipher spec]
+                        <--------               Finished
+Application Data        <------->       Application Data
+\end{verbatim}
+Notice that information like the username \texttt{I} at the beginning is transmitted trough what are called the TLS Extensions, that are additional data structures usually optional. In particular different cipher-suites are available as choice but they all need the SRP extension to be used from the beginning, so if the server chooses an SRP protocol it is possible that the client has to reconnect from the beginning including the SRP information that the server didn't receive before. CipherSuites incorporating SRP all start in the form \texttt{TLS\_SRP\_SHA\_*}. In the protocol sketch above notice how in the Server Key Exchange contains all the parameters as defined in the description we gave in the previous section, notice however that is the server sent a certificate then this portion of the message has to be signed (not required in the standard SRP protocol). The client will then verify the conditions imposed by the SRP protocol potentially leading to the launch of an \texttt{insufficient\_security} or \texttt{illegal\_parameter} alerts. The same applies to the server receiving the Client Key Exchange message. The premaster secrets of the TLS handshake are the values $S$ calculated in both the client and the server while the finished messages perform the same function as the client and server evidence messages (M and the following one) specified in Figure \ref{fig:protocol}.
+
+\paragraph*{Telnet}
+The RFC describing SRP authentication \cite{RFC2944} for Telnet describes the following command names and codes:
+\begin{verbatim}
+Authentication Types
+  SRP          5
+	  
+Suboption Commands
+  AUTH         0
+  REJECT       1
+  ACCEPT       2
+  CHALLENGE    3
+  RESPONSE     4
+
+  EXP          8
+  PARAMS       9
+\end{verbatim}
+
+Then it describes a list of commands that have to be used by the client and the server to fulfil a successful authentication. We provide just an example of the command required to send the values $N, g, s$ used in the exponentiations to the client, referring to the RFC for a complete list.
+\begin{verbatim}
+IAC SB AUTHENTICATION REPLY <authentication-type-pair> 
+PARAMS <values of modulus, generator, and salt> IAC SE
+\end{verbatim}
+
+\section{Usage example}
+SRP has been implementes in all the most common programming languages and has been included in widely used security libraries like OpenSSL. This library in particular provides an useful command line tool that allows you to create a verifier on your system. Let's try how it works:
+\begin{verbatim}
+$ touch passwd.srpv
+$ openssl srp -srpvfile passwd.srpv -add -gn 1024 spallas
+Enter pass phrase for spallas:
+Verifying - Enter pass phrase for spallas:
+$ cat passwd.srpv
+V	5McximDSEQoBmlFTbNVc6Nl7xbAIhgdY0J.Dp4yJgIth3P08JHjKDt
+XPn4M28wOpJEZDLPxu5ZiVNYyJpD0jDcDqnXOJ6b8pLHVFlNSM23YgpLnh
+ynNqcGAx4vpWCc.mqRMTHkkiW7dtmsSFUzL/iwdCS.XXOYFfSQe6AZ2KUt
+m	7Irr3qkPNfgs5czh1V9/myGp3yy	spallas	1024
+$
+\end{verbatim}
+The tool expects a file already existing and a dimension for the modular operations parameters, notice that 1024 and 1536 are mandatory for TLS-SRP. The OpenSSL libraries also provides primitives (found in the \texttt{<openssl/srp.h>}) that allow the programmer to use the file we created to implement a SRP server in C.
+
+Another interesting example is the Mozilla javascript implementation provided as an \texttt{npm} package (you can find the source code in the following GitHub repository \url{https://github.com/mozilla/node-srp}). The API it provides is quite straightforward. At first the server and the client agree on a set of paramenters retrieving them from a table with the following line:
+\begin{verbatim}
+var params = srp.params["2048"];
+\end{verbatim} 
+Then a verifier must be created:
+\begin{verbatim}
+var verifier = srp.computeVerifier(params, salt, identity, password);
+createAccount(identity, verifier);
+\end{verbatim}
+Then starting from the random $a, b$ values generated with the following functions are exchanged between client and server (the reader with a basic knowledge of the NodeJS programming paradigm will recognise that the secretN parameters are given to the callback function by the genKey() function). We omit the final code used to complete the authentication, hoping that we gave the idea of the API we are mentioning.
+\begin{verbatim}
+***CLIENT***
+srp.genKey(function(secret1) {
+    var c = new srp.Client(params, salt, identity, password, secret1);
+    var srpA = c.computeA();
+    sendToServer(srpA);
+});
+***SERVER***
+srp.genKey(function(secret2) {
+    var s = new srp.Server(params, verifier, secret2);
+    var srpB = s.computeB();
+    sendToClient(srpB);
+});
+\end{verbatim}
+
+\section{Conclusions}
+In this work we gave an overview of the SRP protocol describing in particular the sequence of messages required for the authentication and comparing the main security properties with the ones offered by other mainstream alternatives. A future work could address a detailed analysis of performance of security-equivalent modern alternatives to the SRP protocol. 
+
+%\clearpage
+\nocite{*} % Show all Bib-entries
+\bibliography{hw7-8-1642557} 
+\bibliographystyle{plainurl}
+
+\end{document}
